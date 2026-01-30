@@ -37,8 +37,19 @@ public function index()
         $data['role'] = 'Dashboard';
         $data['user'] = $this->db->where('email', 
         $this->session->userdata('email'))->get('userr')->row_array();
+        
 
         $data['role'] = $this->db->get('user_role')->result_array();
+        $this->form_validation->set_rules('role', 'Role', 'required|trim');
+
+        $this->form_validation->set_rules('role', 'Role', 'required|trim');
+
+        if ($this->form_validation->run() == true) {
+            $this->db->insert('user_role', [
+                'role' => $this->input->post('role')
+            ]);
+            redirect('admin/role');
+        }
 
         $this->load->view('templates/header', $data);
         $this->load->view('templates/sidebar', $data);
@@ -47,6 +58,7 @@ public function index()
         $this->load->view('templates/footer');
 
 }
+
 
  public function roleaccess($role_id)
     {

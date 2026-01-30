@@ -10,13 +10,12 @@
 <div class="row">
     <div class="col-lg-6"></div>
 
-    <?= form_error('menu', '<div class="alert alert-danger" role="alert">', '</div>'); ?> 
     <?= $this->session->flashdata('message'); ?>
 
 
 <a href="" class="btn btn-primary mb-3" data-toggle="modal" data-target="#newmenumodal">Add New Menu</a>
 
-<table class="table table-hover">
+<table id="menuTable" class="table table-hover">
   <thead>
     <tr>
       <th scope="col">#</th>
@@ -25,18 +24,7 @@
     </tr> 
   </thead>
   <tbody>
-    <?php $i = 1; ?>
-    <?php foreach($menu as $m) : ?>
-    <tr>
-      <th scope="row"><?= $i; ?></th>
-      <td><?= $m['menu'] ?></td>
-      <td>
-        <a href="" class="badge badge-success" >edit</a>
-        <a href="" class="badge badge-danger">delete</a>
-      </td>
-    </tr>
-    <?php $i++; ?>
-    <?php endforeach ?>
+    
   </tbody>
 </table>
 </div>
@@ -60,7 +48,8 @@
       <form action="<?= base_url('menu'); ?>" method="post">
       <div class="modal-body">
         <div class="form-group">
-            <input type="text" class="form-control" id="menu" name="menu" placeholder="Menu name">
+            <input type="text" class="form-control" id="menu" name="menu" placeholder="Menu name" value="<?= set_value('menu') ?>" required>
+            <?= form_error('menu', '<small class="text-danger">', '</small>'); ?>
         </div>
       </div>
       <div class="modal-footer">
@@ -71,4 +60,12 @@
     </div>
   </div>
 </div>
-            
+<?php if ((isset($open_modal) && $open_modal) || form_error('menu')): ?>
+<script>
+$(document).ready(function() {
+    $('#newmenumodal').modal('show');
+});
+</script>
+<?php endif; ?>
+        
+

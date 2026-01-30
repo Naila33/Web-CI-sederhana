@@ -12,7 +12,6 @@ $data['title'] = 'Role'; // Add this line
 <div class="row">
     <div class="col-lg-6"></div>
 
-    <?= form_error('role', '<div class="alert alert-danger" role="alert">', '</div>'); ?> 
     <?= $this->session->flashdata('message'); ?>
 
 
@@ -51,11 +50,11 @@ $data['title'] = 'Role'; // Add this line
             </div>
 
 <!-- Modal -->
-<div class="modal fade" id="=newrolemodal" tabindex="-1" role="dialog" aria-labelledby="=newrolemodalLabel" aria-hidden="true">
+<div class="modal fade" id="newrolemodal" tabindex="-1" role="dialog" aria-labelledby="=newrolemodalLabel" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="=newrolemodalLabel">Add new role</h5>
+        <h5 class="modal-title" id="newrolemodalLabel">Add new role</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
@@ -63,7 +62,9 @@ $data['title'] = 'Role'; // Add this line
       <form action="<?= base_url('admin/role'); ?>" method="post">
       <div class="modal-body">
         <div class="form-group">
-            <input type="text" class="form-control" id="role" name="role" placeholder="role name">
+            <input type="text" class="form-control" id="role" name="role" placeholder="role name" value="<?= set_value('role') ?>" required>
+            <?= form_error('role', '<small class="text-danger">', '</small>'); ?>
+
         </div>
       </div>
       <div class="modal-footer">
@@ -74,3 +75,15 @@ $data['title'] = 'Role'; // Add this line
     </div>
   </div>
 </div>
+
+<?php if (form_error('role') || (isset($open_modal) && $open_modal)): ?>
+<script>
+$(document).ready(function() {
+    $('#newrolemodal').modal('show');
+});
+</script>
+<?php endif; ?>
+
+
+
+
