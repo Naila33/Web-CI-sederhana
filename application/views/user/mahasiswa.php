@@ -24,7 +24,17 @@
 <button class="btn btn-success" onclick="window.print()">
   Print
 </button>
+<a class="btn btn-success" href="<?= site_url('user/excel') . (!empty($filter_jk) ? ('?jenis_kelamin=' . urlencode($filter_jk)) : '') ?>">
+  Export Excel
+</a>
+<button class="btn btn-info" data-toggle="modal" data-target="#importMahasiswaModal">
+  Import CSV
+</button>
+<a class="btn btn-warning" href="<?= site_url('user/mahasiswa_chart') . (!empty($filter_jk) ? ('?jenis_kelamin=' . urlencode($filter_jk)) : '') ?>">
+  Chart jenis kelamin
+</a>
 
+ 
 
 
 <!-- Prodi: Table List -->
@@ -274,7 +284,34 @@
 
 </div>
 
-
+<!-- Modal: Import Mahasiswa (CSV) -->
+<div class="modal fade" id="importMahasiswaModal" tabindex="-1" role="dialog" aria-labelledby="importMahasiswaLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="importMahasiswaLabel">Import Mahasiswa (CSV)</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&​times;</span>
+        </button>
+      </div>
+      <form action="<?= site_url('user/import_mahasiswa') . (!empty($filter_jk) ? ('?jenis_kelamin=' . urlencode($filter_jk)) : '') ?>" method="post" enctype="multipart/form-data">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="file_import">Pilih file CSV</label>
+            <input type="file" class="form-control-file" id="file_import" name="file_import" accept=".csv,text/csv" required>
+            <small class="form-text text-muted">
+              Header: nama_siswa, nim, (prodi_id atau prodi), jenis_kelamin (L/P).
+            </small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary">Import</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
     <?php if ((isset($open_modal) && $open_modal)
     || form_error('nama_siswa')
@@ -400,6 +437,7 @@
         var _ti = setInterval(function(){ if (_initMahasiswaDT($)) clearInterval(_ti); }, 150);
       }
     })();
+
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') withJQ(init);

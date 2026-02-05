@@ -39,20 +39,17 @@
     </div>
 </div>
 
-<!-- Bootstrap core JavaScript-->
+
 <script src="<?= base_url('assets/');  ?>vendor/jquery/jquery.min.js"></script>
 <script src="<?= base_url('assets/');  ?>vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 
 
-<!-- Custom scripts for all pages-->
+
 <script src="<?= base_url('assets/');  ?>js/sb-admin-2.min.js"></script>
 
 <link rel="stylesheet" href="https://cdn.datatables.net/2.3.6/css/dataTables.dataTables.css">
 <script src="https://cdn.datatables.net/2.3.6/js/dataTables.js"></script>
 
-<script>
-    //ini script datatable yang tadi
-</script>
 
 <script>
     $('#table').DataTable({
@@ -66,7 +63,7 @@
         },
 
         columnDefs: [{
-            targets: [0, 6], // No & Aksi
+            targets: [0, 6], 
             orderable: false
         }],
 
@@ -105,7 +102,7 @@
         },
 
         columnDefs: [{
-            targets: [0, 2], // No & Aksi
+            targets: [0, 2], 
             orderable: false
         }],
 
@@ -131,7 +128,7 @@
         type: "POST"
     },
     columnDefs: [{
-        targets: [0, 5], // No & Aksi
+        targets: [0, 5], 
         orderable: false
     }],
     columns: [
@@ -145,7 +142,7 @@
 });
 
 
-// Prodi: Edit - buka modal dan isi data
+// Prodi: Edit -  modal
 $(document).on('click', '.btn-edit-prodi', function(e) {
     e.preventDefault();
     const id = $(this).data('id');
@@ -156,13 +153,12 @@ $(document).on('click', '.btn-edit-prodi', function(e) {
         $('#e_nama_prodi').val(res.nama_prodi);
         $('#e_jenjang').val(res.jenjang);
         $('#e_fakultas').val(res.fakultas);
-        // reset pesan error
         $('#err_kode_prodi, #err_nama_prodi, #err_jenjang, #err_fakultas').text('');
         $('#editProdiModal').modal('show');
     }, 'json');
 });
 
-// Prodi: Edit - submit via AJAX
+// Prodi: Edit - submit 
 $('#formEditProdi').on('submit', function(e) {
     e.preventDefault();
     $('#err_kode_prodi, #err_nama_prodi, #err_jenjang, #err_fakultas').text('');

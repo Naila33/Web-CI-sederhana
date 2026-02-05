@@ -286,13 +286,17 @@ class User extends CI_Controller
     $data['prodi_map'] = $prodi_map;
     // decorate rows for presentation
     $decorated = [];
+    $gender_counts = ['L' => 0, 'P' => 0];
     foreach ($data['mahasiswa'] as $row) {
         $row['prodi_name'] = isset($prodi_map[$row['prodi_id']]) ? $prodi_map[$row['prodi_id']] : $row['prodi_id'];
         $row['jenis_kelamin_label'] = ($row['jenis_kelamin'] === 'L') ? 'Laki-laki' : (($row['jenis_kelamin'] === 'P') ? 'Perempuan' : $row['jenis_kelamin']);
         if (empty($row['image'])) { $row['image'] = 'default.jpg'; }
+        if ($row['jenis_kelamin'] === 'L') { $gender_counts['L']++; }
+        elseif ($row['jenis_kelamin'] === 'P') { $gender_counts['P']++; }
         $decorated[] = $row;
     }
     $data['mahasiswa'] = $decorated;
+    $data['gender_counts'] = $gender_counts;
 
     $data['open_modal'] = false;
 
@@ -495,6 +499,202 @@ class User extends CI_Controller
         $data['mahasiswa'] = $decorated;
 
         $this->load->view('user/mahasiswa_print', $data);
+    }
+
+    public function excel()
+    {
+        $jk = $this->input->get('jenis_kelamin', true);
+        if (in_array($jk, ['L', 'P'], true)) {
+            $this->db->where('jenis_kelamin', $jk);
+        }
+
+        $rows = $this->db->get('mahasiswa')->result_array();
+
+        // build prodi map
+        $prodi_list = $this->db->get('prodi')->result_array();
+        $prodi_map = [];
+        foreach ($prodi_list as $pl) { $prodi_map[$pl['id']] = $pl['nama_prodi']; }
+
+        $filename = 'mahasiswa_' . date('Ymd_His') . '.xls';
+        header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        echo '<meta charset="UTF-8">';
+        echo '<table border="1">';
+        echo '<thead><tr>';
+        echo '<th>No</th><th>Nama Mahasiswa</th><th>NIM</th><th>Prodi</th><th>Jenis Kelamin</th><th>Image</th>';
+        echo '</tr></thead><tbody>';
+        $no = 1;
+        foreach ($rows as $r) {
+            $prodi_name = isset($prodi_map[$r['prodi_id']]) ? $prodi_map[$r['prodi_id']] : $r['prodi_id'];
+            $jk_label = ($r['jenis_kelamin'] === 'L') ? 'Laki-laki' : (($r['jenis_kelamin'] === 'P') ? 'Perempuan' : $r['jenis_kelamin']);
+            echo '<tr>';
+            echo '<td>' . $no++ . '</td>';
+            echo '<td>' . htmlspecialchars($r['nama_siswa'], ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars($r['nim'], ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars($prodi_name, ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars($jk_label, ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '<td>' . htmlspecialchars($r['image'], ENT_QUOTES, 'UTF-8') . '</td>';
+            echo '</tr>';
+        }
+        echo '</tbody></table>';
+        exit;
+    }
+
+    public function import_mahasiswa()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            redirect('user/mahasiswa');
+            return;
+        }
+
+        $redirect_url = 'user/mahasiswa';
+        $jk = $this->input->get('jenis_kelamin', true);
+        if (in_array($jk, ['L','P'], true)) {
+            $redirect_url .= '?jenis_kelamin=' . urlencode($jk);
+        }
+
+        if (!isset($_FILES['file_import']) || empty($_FILES['file_import']['tmp_name'])) {
+            $this->session->set_flashdata('message', '<div class="alert alert-danger" role="alert">File CSV belum dipilih.</div>');
+            redirect($redirect_url);
+            return;
+        }
+
+        $tmp = $_FILES['file_import']['tmp_name'];
+        $handle = @fopen($tmp, 'r');
+        if (!$handle) {
+            $this->session->set_flashdata('message', '<div class="alert alert-danger" role="alert">Gagal membuka file untuk dibaca.</div>');
+            redirect($redirect_url);
+            return;
+        }
+
+        // ambil daftar prodi untuk map nama->id
+        $prodi_rows = $this->db->get('prodi')->result_array();
+        $prodi_map_by_name = [];
+        $prodi_ids = [];
+        foreach ($prodi_rows as $p) {
+            $prodi_map_by_name[strtolower(trim($p['nama_prodi']))] = (int)$p['id'];
+            $prodi_ids[(int)$p['id']] = true;
+        }
+
+        $success = 0;
+        $failed = 0;
+        $lineNo = 0;
+
+        // baca header
+        $header = false;
+        $colIndex = [];
+        while (($row = fgetcsv($handle, 0, ',')) !== false) {
+            // jika delimiter koma gagal (satu kolom besar), coba ;
+            if (count($row) === 1) {
+                $row = str_getcsv($row[0], ';');
+            }
+            // skip baris kosong
+            $allEmpty = true; foreach ($row as $c) { if (trim($c) !== '') { $allEmpty = false; break; } }
+            if ($allEmpty) { continue; }
+
+            $lineNo++;
+            if ($header === false) {
+                $header = array_map(function($h){ return strtolower(trim($h)); }, $row);
+                // petakan kolom yang dikenali
+                $want = ['nama_siswa','nim','prodi_id','prodi','jenis_kelamin'];
+                foreach ($want as $w) {
+                    $idx = array_search($w, $header, true);
+                    if ($idx !== false) { $colIndex[$w] = $idx; }
+                }
+                // minimal wajib: nama_siswa, nim, (prodi_id atau prodi), jenis_kelamin
+                if (!isset($colIndex['nama_siswa']) || !isset($colIndex['nim']) || (!isset($colIndex['prodi_id']) && !isset($colIndex['prodi'])) || !isset($colIndex['jenis_kelamin'])) {
+                    fclose($handle);
+                    $this->session->set_flashdata('message', '<div class="alert alert-danger" role="alert">Header CSV tidak valid. Wajib ada kolom: nama_siswa, nim, (prodi_id atau prodi), jenis_kelamin.</div>');
+                    redirect($redirect_url);
+                    return;
+                }
+                continue;
+            }
+
+            // ambil nilai per kolom
+            $nama = isset($colIndex['nama_siswa']) ? trim($row[$colIndex['nama_siswa']] ?? '') : '';
+            $nim  = isset($colIndex['nim']) ? trim($row[$colIndex['nim']] ?? '') : '';
+            $jenis = isset($colIndex['jenis_kelamin']) ? trim($row[$colIndex['jenis_kelamin']] ?? '') : '';
+            $image = isset($colIndex['image']) ? trim($row[$colIndex['image']] ?? '') : '';
+
+            // normalisasi jenis kelamin
+            $j = strtoupper(substr($jenis,0,1));
+            if ($j === 'L') { $jenis = 'L'; }
+            elseif ($j === 'P') { $jenis = 'P'; }
+            else { $jenis = ''; }
+
+            // prodi id dari id atau nama
+            $prodi_id = null;
+            if (isset($colIndex['prodi_id'])) {
+                $pidRaw = trim($row[$colIndex['prodi_id']] ?? '');
+                if ($pidRaw !== '' && ctype_digit($pidRaw)) {
+                    $pid = (int)$pidRaw;
+                    if (isset($prodi_ids[$pid])) { $prodi_id = $pid; }
+                }
+            }
+            if ($prodi_id === null && isset($colIndex['prodi'])) {
+                $pname = strtolower(trim($row[$colIndex['prodi']] ?? ''));
+                if ($pname !== '' && isset($prodi_map_by_name[$pname])) {
+                    $prodi_id = $prodi_map_by_name[$pname];
+                }
+            }
+
+            if ($nama === '' || $nim === '' || !$prodi_id || ($jenis !== 'L' && $jenis !== 'P')) {
+                $failed++;
+                continue;
+            }
+
+            $data = [
+                'nama_siswa'    => $nama,
+                'nim'           => $nim,
+                'prodi_id'      => $prodi_id,
+                'jenis_kelamin' => $jenis,
+                'image'         => $image,
+            ];
+
+            $this->db->insert('mahasiswa', $data);
+            if ($this->db->affected_rows() > 0) { $success++; } else { $failed++; }
+        }
+        fclose($handle);
+
+        $msg = '<div class="alert alert-info" role="alert">Import selesai. Berhasil: ' . (int)$success . ', Gagal: ' . (int)$failed . '.</div>';
+        $this->session->set_flashdata('message', $msg);
+        redirect($redirect_url);
+    }
+
+    public function mahasiswa_chart()
+    {
+        $data['title'] = 'Chart Mahasiswa';
+        $data['user'] = $this->db->where(
+            'email',
+            $this->session->userdata('email')
+        )->get('userr')->row_array();
+
+        // optional: respect current filter via query param
+        $jk = $this->input->get('jenis_kelamin', true);
+        if (in_array($jk, ['L', 'P'], true)) {
+            $this->db->where('jenis_kelamin', $jk);
+            $data['filter_jk'] = $jk;
+        } else {
+            $data['filter_jk'] = '';
+        }
+
+        $rows = $this->db->get('mahasiswa')->result_array();
+        $gender_counts = ['L' => 0, 'P' => 0];
+        foreach ($rows as $r) {
+            if ($r['jenis_kelamin'] === 'L') { $gender_counts['L']++; }
+            elseif ($r['jenis_kelamin'] === 'P') { $gender_counts['P']++; }
+        }
+        $data['gender_counts'] = $gender_counts;
+
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('user/mahasiswa_chart', $data);
+        $this->load->view('templates/footer');
     }
 }
 
